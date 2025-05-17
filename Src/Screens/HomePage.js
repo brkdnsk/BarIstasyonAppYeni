@@ -11,7 +11,7 @@ export default function HomePage() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Latte</Text>
           <Text style={styles.cardText}>
-            Süt ve espressonun muazzam birleşimi. Hafif içimli, kremamsı bir tat.
+            Süt ve espressonun muazzam birleşimi. Hafif içimli, kremams bir tat.
           </Text>
         </View>
 
