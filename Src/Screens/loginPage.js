@@ -6,13 +6,15 @@ export default function LoginPage({ navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Barİstasyon</Text>
+
       <TextInput style={styles.input} placeholder="E-posta" />
       <TextInput style={styles.input} placeholder="Şifre" secureTextEntry />
+
       <TouchableOpacity 
-      style={styles.button}
-      onPress={() => navigation.navigate('Home')}
+        style={styles.button}
+        onPress={() => navigation.replace('Main')}  // 👈 Burayı güncelledik
       >
-      <Text style={styles.buttonText}>Giriş Yap</Text>
+        <Text style={styles.buttonText}>Giriş Yap</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
