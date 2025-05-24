@@ -1,72 +1,73 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { Image } from 'react-native';
 
-// 📄 Sayfa bileşenlerini import ediyoruz
+// Sayfa bileşenleri
 import HomePage from '../Screens/HomePage';
 import CoffeesPage from '../Screens/CoffeesPage';
 import EquipmentsPage from '../Screens/EquipmentsPage';
 import JobsPage from '../Screens/JobsPage';
-import SettingsPage from '../Screens/SettingsPage';
+import ProfilePage from '../Screens/ProfilePage';
 
-// 🔧 Bottom Tab Navigator oluşturuluyor
+// PNG ikonları import et
+import iconHome from '../assets/icon/home-icon-silhouette.png';
+import iconCoffee from '../assets/icon/cup-of-drink.png';
+import iconEquip from '../assets/icon/v60.png';
+import iconJob from '../assets/icon/barista.png';
+import iconProfile from '../assets/icon/user.png';
+
+// Tab navigator oluştur
 const Tab = createBottomTabNavigator();
 
-// ✅ Navigator bileşeni export ediliyor
 export default function BottomTabNavigator() {
   return (
     <Tab.Navigator
-      // 🛠️ Tüm tab ekranları için ortak ayarlar
       screenOptions={({ route }) => ({
-        // Her sekmeye özel ikon belirleme
-        tabBarIcon: ({ color, size }) => {
-          let iconName;
+        tabBarIcon: ({ focused, size }) => {
+          let iconSource;
 
-          // 👇 Sekme adına göre ikon belirleniyor
           switch (route.name) {
             case 'AnaSayfa':
-              iconName = 'home-outline';
+              iconSource = iconHome;
               break;
             case 'Kahveler':
-              iconName = 'cafe'; // Ionicons → ☕
+              iconSource = iconCoffee;
               break;
             case 'Ekipmanlar':
-              iconName = 'construct-outline';
+              iconSource = iconEquip;
               break;
             case 'İşİlanları':
-              iconName = 'briefcase-outline';
+              iconSource = iconJob;
               break;
-            case 'Ayarlar':
-              iconName = 'settings-outline';
+            case 'Profilim':
+              iconSource = iconProfile;
               break;
             default:
-              iconName = 'ellipse-outline';
+              iconSource = iconHome;
           }
 
-          // İkon render ediliyor
-          return <Icon name={iconName} size={size} color={color} />;
+          return (
+            <Image
+              source={iconSource}
+              style={{
+                width: focused ? size + 2 : size,
+                height: focused ? size + 2 : size,
+                tintColor: focused ? '#6f4e37' : 'gray',
+              }}
+            />
+          );
         },
-
-        // Aktif ve pasif renk ayarları
-        tabBarActiveTintColor: '#6f4e37',   // Aktif sekme rengi (kahverengi ton)
-        tabBarInactiveTintColor: 'gray',   // Pasif sekme rengi
-        headerShown: false,                // Üst başlık gizleniyor
+        tabBarActiveTintColor: '#6f4e37',
+        tabBarInactiveTintColor: 'gray',
+        headerShown: false,
       })}
     >
-      {/* 🏠 Ana sayfa sekmesi */}
       <Tab.Screen name="AnaSayfa" component={HomePage} />
+<Tab.Screen name="Kahveler" component={CoffeesPage} />
+<Tab.Screen name="Ekipmanlar" component={EquipmentsPage} />
+<Tab.Screen name="İş İlanları" component={JobsPage} />
+<Tab.Screen name="Profilim" component={ProfilePage} />
 
-      {/* ☕ Kahveler sekmesi */}
-      <Tab.Screen name="Kahveler" component={CoffeesPage} />
-
-      {/* 🛠️ Ekipmanlar sekmesi */}
-      <Tab.Screen name="Ekipmanlar" component={EquipmentsPage} />
-
-      {/* 💼 İş İlanları sekmesi */}
-      <Tab.Screen name="İşİlanları" component={JobsPage} />
-
-      {/* ⚙️ Ayarlar sekmesi */}
-      <Tab.Screen name="Ayarlar" component={SettingsPage} />
     </Tab.Navigator>
   );
 }
