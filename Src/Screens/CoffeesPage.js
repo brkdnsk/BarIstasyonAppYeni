@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 
-export default function CoffeesPage() {
+export default function CoffeesPage({ navigation }) {
   const [coffees, setCoffees] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch('http://10.0.2.2:5220/api/CoffeeRecipe')
-      .then(response => response.json())
+      .then(async response => {
+        if (!response.ok) {
+          const error = await response.text();
+          throw new Error(`Hata: ${response.status} - ${error}`);
+        }
+        return response.json();
+      })
       .then(data => {
         setCoffees(data);
         setLoading(false);
@@ -19,29 +25,16 @@ export default function CoffeesPage() {
   }, []);
 
   const renderItem = ({ item }) => (
-    <View style={styles.itemContainer}>
+    <TouchableOpacity
+      style={styles.itemContainer}
+      onPress={() => navigation.navigate('CoffeeDetails', { coffee: item })}
+    >
       {item.imageUrl && (
-        <Image
-          source={{ uri: item.imageUrl }}
-          style={styles.image}
-          resizeMode="cover"
-        />
+        <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
       )}
       <Text style={styles.title}>{item.title}</Text>
-      <Text style={styles.label}>Açıklama:</Text>
-      <Text style={styles.text}>{item.description}</Text>
-
-      <Text style={styles.label}>Demleme Yöntemi:</Text>
-      <Text style={styles.text}>{item.method}</Text>
-
-      <Text style={styles.label}>Demleme Süresi:</Text>
-      <Text style={styles.text}>{item.brewTime} dakika</Text>
-
-      <Text style={styles.label}>Malzemeler:</Text>
-      <Text style={styles.text}>{item.ingredients}</Text>
-
-      <Text style={styles.date}>Tarih: {new Date(item.createdAt).toLocaleDateString()}</Text>
-    </View>
+      <Text style={styles.description} numberOfLines={3}>{item.description}</Text>
+    </TouchableOpacity>
   );
 
   return (
@@ -99,19 +92,8 @@ const styles = StyleSheet.create({
     color: '#4e342e',
     marginBottom: 6,
   },
-  label: {
-    fontWeight: '600',
-    color: '#6f4e37',
-    marginTop: 4,
-  },
-  text: {
+  description: {
     fontSize: 14,
     color: '#5d4037',
-  },
-  date: {
-    fontSize: 12,
-    color: '#8d6e63',
-    marginTop: 10,
-    textAlign: 'right',
   },
 });

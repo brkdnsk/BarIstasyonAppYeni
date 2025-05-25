@@ -1,31 +1,71 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  ActivityIndicator,
+  FlatList,
+  TouchableOpacity,
+} from 'react-native';
 
-// Giriş yapan kullanıcı varsayılsın
-const loggedInUserId = 1; // Gerçek uygulamada token'dan alınır
+const loggedInUserId = 1;
 
-export default function ProfilePage() {
+export default function ProfilePage({ navigation }) {
   const [user, setUser] = useState(null);
+  const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const safeJson = async (res) => {
+    const text = await res.text();
+    if (!text) return null;
+    return JSON.parse(text);
+  };
+
   useEffect(() => {
-    fetch(`http://10.0.2.2:5220/api/User/${loggedInUserId}`)
-      .then(async response => {
-        if (!response.ok) {
-          const error = await response.text();
-          throw new Error(`Hata: ${response.status} - ${error}`);
-        }
-        return response.json();
-      })
-      .then(data => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch(`http://10.0.2.2:5220/api/User/${loggedInUserId}`);
+        if (!res.ok) throw new Error(`Kullanıcı alınamadı: ${res.status}`);
+        const data = await res.json();
         setUser(data);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Veri çekme hatası:', error);
-        setLoading(false);
-      });
+      } catch (err) {
+        console.error('Kullanıcı verisi hatası:', err.message);
+      }
+    };
+
+    const fetchFavorites = async () => {
+      try {
+        const res = await fetch(`http://10.0.2.2:5220/api/FavoriteRecipe`);
+        const data = await safeJson(res);
+        const userFavorites = data
+          .filter(f => f.userId === loggedInUserId)
+          .map(f => ({
+            id: f.id,
+            coffeeRecipeId: f.coffeeRecipeId,
+            coffee: f.coffeeRecipe || {}, // coffeeRecipe verisi varsa
+          }));
+        setFavorites(userFavorites);
+      } catch (err) {
+        console.error('Favori verisi hatası:', err.message);
+      }
+    };
+
+    Promise.all([fetchUser(), fetchFavorites()]).finally(() => setLoading(false));
   }, []);
+
+  const renderFavoriteItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.favItem}
+      onPress={() => {
+        if (item.coffee?.id) {
+          navigation.navigate('CoffeeDetailsPage', { coffee: item.coffee });
+        }
+      }}
+    >
+      <Text style={styles.favTitle}>{item.coffee?.title || 'Başlık yok'}</Text>
+    </TouchableOpacity>
+  );
 
   if (loading) {
     return (
@@ -63,6 +103,14 @@ export default function ProfilePage() {
 
       <Text style={styles.label}>Rol:</Text>
       <Text style={styles.text}>{user.role}</Text>
+
+      <Text style={[styles.label, { marginTop: 20 }]}>Favori Tariflerim:</Text>
+      <FlatList
+        data={favorites}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={renderFavoriteItem}
+        ListEmptyComponent={<Text style={styles.text}>Favori tarif bulunamadı.</Text>}
+      />
     </View>
   );
 }
@@ -111,5 +159,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'red',
     textAlign: 'center',
+  },
+  favItem: {
+    backgroundColor: '#e0d3c2',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  favTitle: {
+    color: '#4e342e',
+    fontWeight: 'bold',
   },
 });
