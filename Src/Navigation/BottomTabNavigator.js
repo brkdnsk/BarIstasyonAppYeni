@@ -63,11 +63,10 @@ export default function BottomTabNavigator() {
       })}
     >
       <Tab.Screen name="AnaSayfa" component={HomePage} />
-<Tab.Screen name="Kahveler" component={CoffeesPage} />
-<Tab.Screen name="Ekipmanlar" component={EquipmentsPage} />
-<Tab.Screen name="İş İlanları" component={JobsPage} />
-<Tab.Screen name="Profilim" component={ProfilePage} />
-
+      <Tab.Screen name="Kahveler" component={CoffeesPage} />
+      <Tab.Screen name="Ekipmanlar" component={EquipmentsPage} />
+      <Tab.Screen name="İşİlanları" component={JobsPage} />
+      <Tab.Screen name="Profilim" component={ProfilePage} />
     </Tab.Navigator>
   );
 }

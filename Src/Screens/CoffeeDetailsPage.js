@@ -4,210 +4,203 @@ import {
   Text,
   StyleSheet,
   Image,
+  ScrollView,
   TouchableOpacity,
-  TextInput,
-  FlatList,
   Alert,
+  Dimensions,
 } from 'react-native';
+import WebView from 'react-native-webview';
 
-export default function CoffeeDetailsPage({ route }) {
+const windowWidth = Dimensions.get('window').width;
+const loggedInUserId = 1;
+
+export default function CoffeeDetailsPage({ route, navigation }) {
   const { coffee } = route.params;
-  const userId = 1;
-
   const [isFavorite, setIsFavorite] = useState(false);
-  const [favId, setFavId] = useState(null);
-  const [comment, setComment] = useState('');
-  const [comments, setComments] = useState([]);
-  const [rating, setRating] = useState(0);
-  const [myRating, setMyRating] = useState(0);
-
-  const safeJson = async (res) => {
-    const text = await res.text();
-    if (!text) return null;
-    return JSON.parse(text);
-  };
+  const [videoHeight, setVideoHeight] = useState(windowWidth * 0.5625); // 16:9 aspect ratio
 
   useEffect(() => {
-    fetch(`http://10.0.2.2:5220/api/FavoriteRecipe`)
-      .then(safeJson)
-      .then(data => {
-        const fav = data?.find(f => f.userId === userId && f.coffeeRecipeId === coffee.id);
-        if (fav) {
-          setIsFavorite(true);
-          setFavId(fav.id);
-        }
-      })
-      .catch(err => console.log('Favori alınamadı:', err.message));
-
-    fetch(`http://10.0.2.2:5220/api/Review/recipe/${coffee.id}`)
-      .then(safeJson)
-      .then(data => {
-        if (data) setComments(data);
-      })
-      .catch(err => console.log('Yorum alınamadı:', err.message));
-
-    fetch(`http://10.0.2.2:5220/api/Rating/average/${coffee.id}`)
-      .then(safeJson)
-      .then(data => {
-        if (data?.average !== undefined) setRating(data.average);
-      })
-      .catch(err => console.log('Puan alınamadı:', err.message));
+    checkFavoriteStatus();
   }, []);
+
+  const checkFavoriteStatus = async () => {
+    try {
+      const response = await fetch('http://10.0.2.2:5220/api/FavoriteRecipe');
+      const favorites = await response.json();
+      const isCurrentFavorite = favorites.some(
+        f => f.userId === loggedInUserId && f.coffeeRecipeId === coffee.id
+      );
+      setIsFavorite(isCurrentFavorite);
+    } catch (error) {
+      console.error('Favori durumu kontrol edilirken hata:', error);
+    }
+  };
 
   const toggleFavorite = async () => {
     try {
       if (isFavorite) {
-        await fetch(`http://10.0.2.2:5220/api/FavoriteRecipe/${favId}`, { method: 'DELETE' });
-        setIsFavorite(false);
-        setFavId(null);
-      } else {
-        const res = await fetch(`http://10.0.2.2:5220/api/FavoriteRecipe`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, coffeeRecipeId: coffee.id }),
-        });
-        const data = await safeJson(res);
-        if (data?.id) {
-          setIsFavorite(true);
-          setFavId(data.id);
+        const favorites = await fetch('http://10.0.2.2:5220/api/FavoriteRecipe').then(res => res.json());
+        const favorite = favorites.find(f => f.userId === loggedInUserId && f.coffeeRecipeId === coffee.id);
+        
+        if (favorite) {
+          await fetch(`http://10.0.2.2:5220/api/FavoriteRecipe/${favorite.id}`, {
+            method: 'DELETE'
+          });
         }
+      } else {
+        await fetch('http://10.0.2.2:5220/api/FavoriteRecipe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userId: loggedInUserId,
+            coffeeRecipeId: coffee.id
+          })
+        });
       }
-    } catch (err) {
-      Alert.alert('Favori Hatası', 'Favori işlemi başarısız.');
+      setIsFavorite(!isFavorite);
+    } catch (error) {
+      console.error('Favori işlemi sırasında hata:', error);
+      Alert.alert('Hata', 'Favori işlemi gerçekleştirilemedi.');
     }
   };
 
-  const submitComment = () => {
-    if (!comment.trim()) return;
-
-    fetch(`http://10.0.2.2:5220/api/Review`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, coffeeRecipeId: coffee.id, text: comment }),
-    })
-      .then(() => fetch(`http://10.0.2.2:5220/api/Review/recipe/${coffee.id}`))
-      .then(safeJson)
-      .then(data => {
-        if (data) {
-          setComments(data);
-          setComment('');
-        }
-      })
-      .catch(err => console.log('Yorum gönderme hatası:', err.message));
+  const getEmbedUrl = (url) => {
+    if (!url) return null;
+    
+    // YouTube URL'sini embed formatına dönüştür
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      const videoId = url.split('embed/')[1];
+      if (videoId) {
+        return `https://www.youtube.com/embed/${videoId}`;
+      }
+    }
+    return url;
   };
-
-  const submitRating = (score) => {
-    fetch(`http://10.0.2.2:5220/api/Rating`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, coffeeRecipeId: coffee.id, score }),
-    })
-      .then(() => {
-        setMyRating(score);
-        return fetch(`http://10.0.2.2:5220/api/Rating/average/${coffee.id}`);
-      })
-      .then(safeJson)
-      .then(data => {
-        if (data?.average !== undefined) setRating(data.average);
-      })
-      .catch(err => Alert.alert('Puanlama Hatası', err.message));
-  };
-
-  const renderCommentItem = ({ item }) => (
-    <View style={styles.commentItem}>
-      <Text style={styles.commentUser}>{item.username || 'Kullanıcı'}:</Text>
-      <Text>{item.text}</Text>
-    </View>
-  );
 
   return (
-    <FlatList
-      style={styles.container}
-      data={comments}
-      keyExtractor={(item, index) => index.toString()}
-      renderItem={renderCommentItem}
-      ListHeaderComponent={
-        <>
-          {coffee.imageUrl && (
-            <Image source={{ uri: coffee.imageUrl }} style={styles.image} />
-          )}
-          <Text style={styles.title}>{coffee.title}</Text>
-          <Text style={styles.description}>{coffee.description}</Text>
-
-          <TouchableOpacity onPress={toggleFavorite}>
-            <Text style={styles.favorite}>
-              {isFavorite ? '★ Favoriden Kaldır' : '☆ Favorilere Ekle'}
-            </Text>
-          </TouchableOpacity>
-
-          <Text style={styles.sectionTitle}>
-            Ortalama Puan: {rating.toFixed(1)} / 5
-          </Text>
-
-          <Text style={styles.sectionTitle}>Senin Puanın:</Text>
-          <View style={styles.stars}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <TouchableOpacity
-                key={star}
-                onPress={() => submitRating(star)}
-                disabled={myRating > 0}
-              >
-                <Text style={{
-                  fontSize: 24,
-                  color: star <= myRating ? '#6f4e37' : '#ccc'
-                }}>
-                  {star <= myRating ? '★' : '☆'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.sectionTitle}>Yorumlar:</Text>
-        </>
-      }
-      ListFooterComponent={
-        <>
-          <TextInput
-            placeholder="Yorum yaz..."
-            value={comment}
-            onChangeText={setComment}
-            style={styles.input}
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        {coffee.imageUrl && (
+          <Image
+            source={{ uri: coffee.imageUrl }}
+            style={styles.image}
+            resizeMode="cover"
           />
-          <TouchableOpacity onPress={submitComment} style={styles.commentButton}>
-            <Text style={styles.commentButtonText}>Gönder</Text>
+        )}
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>{coffee.title}</Text>
+          <TouchableOpacity onPress={toggleFavorite} style={styles.favoriteButton}>
+            <Text style={styles.favoriteIcon}>{isFavorite ? '❤️' : '🤍'}</Text>
           </TouchableOpacity>
-        </>
-      }
-      ListEmptyComponent={<Text style={{ color: '#666' }}>Henüz yorum yapılmamış.</Text>}
-    />
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Tarif Açıklaması</Text>
+        <Text style={styles.description}>{coffee.description}</Text>
+      </View>
+
+      {coffee.videoUrl && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Hazırlanış Videosu</Text>
+          <View style={styles.videoContainer}>
+            <WebView
+              source={{ uri: getEmbedUrl(coffee.videoUrl) }}
+              style={styles.video}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              allowsFullscreenVideo={true}
+              onError={() => Alert.alert('Hata', 'Video yüklenirken bir hata oluştu.')}
+            />
+          </View>
+        </View>
+      )}
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Malzemeler</Text>
+        <Text style={styles.ingredients}>{coffee.ingredients}</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Hazırlanışı</Text>
+        <Text style={styles.preparation}>{coffee.preparation}</Text>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#f4f1ea', flex: 1 },
-  image: { width: '100%', height: 200, borderRadius: 10, marginBottom: 10 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#4e342e' },
-  description: { fontSize: 16, color: '#5d4037', marginVertical: 10 },
-  favorite: { fontSize: 16, color: '#6f4e37', marginVertical: 10 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', marginTop: 20, color: '#6f4e37' },
-  stars: { flexDirection: 'row', marginVertical: 10 },
-  input: {
+  container: {
+    flex: 1,
+    backgroundColor: '#f4f1ea',
+  },
+  header: {
     backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    height: 40,
-    marginTop: 10,
-    borderColor: '#ccc',
-    borderWidth: 1,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    overflow: 'hidden',
+    elevation: 3,
   },
-  commentButton: {
-    backgroundColor: '#8c7051',
-    padding: 10,
-    borderRadius: 10,
+  image: {
+    width: '100%',
+    height: 250,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
+    padding: 20,
   },
-  commentButtonText: { color: '#fff', fontWeight: 'bold' },
-  commentItem: { paddingVertical: 5 },
-  commentUser: { fontWeight: '600' },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#4e342e',
+    flex: 1,
+  },
+  favoriteButton: {
+    padding: 10,
+  },
+  favoriteIcon: {
+    fontSize: 24,
+  },
+  section: {
+    backgroundColor: '#fff',
+    margin: 10,
+    padding: 20,
+    borderRadius: 15,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6f4e37',
+    marginBottom: 10,
+  },
+  description: {
+    fontSize: 16,
+    color: '#5d4037',
+    lineHeight: 24,
+  },
+  ingredients: {
+    fontSize: 16,
+    color: '#5d4037',
+    lineHeight: 24,
+  },
+  preparation: {
+    fontSize: 16,
+    color: '#5d4037',
+    lineHeight: 24,
+  },
+  videoContainer: {
+    width: '100%',
+    height: windowWidth * 0.5625, // 16:9 aspect ratio
+    backgroundColor: '#000',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  video: {
+    flex: 1,
+  },
 });
